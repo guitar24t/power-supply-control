@@ -22,5 +22,3 @@ def query_command(sc: Serial, command: SCPICommandBase) -> tuple[bool, str]:
 
 def write_command(sc: Serial, command: SCPICommandBase, value: str):
     sc.write(f"{command.command}:{value}\n".encode())
-    # response = sc.readline().decode().strip()
-    # return (validate_response(command, response), response)
