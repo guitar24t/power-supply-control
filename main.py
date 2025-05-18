@@ -2,6 +2,7 @@
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog
 from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QRect, QPoint, Qt
 import sys
 from serial import Serial
 import serial.tools.list_ports
@@ -81,8 +82,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Output Control")
         self.setGeometry(100, 100, 200, 175)
 
-        qr = self.frameGeometry()
-        cp = QApplication.primaryScreen().availableGeometry().center()
+        qr : QRect = self.frameGeometry()
+        cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
