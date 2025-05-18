@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel
+#!/usr/bin/env python3
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog
 import sys
 from serial import Serial
-from scpi_controller import PowerSupplyOutputController, RelayOutputController
-from scpi import OutputCmd, query_command
+import serial.tools.list_ports
 
 #For Controlling:
 #Abestop,AT6301,24171025,FV:V5.1.0
@@ -13,13 +14,61 @@ DC_BYTESIZE = 8
 DC_PARITY = "N"
 DC_STOPBITS = 2
 
-
+#For Controlling:
+#DSD TECH SH-UR01A USB Relay Controller
 RELAY_COM_PORT = "COM8"
 RELAY_TIMEOUT = 2
 RELAY_BAUDRATE = 9600
 RELAY_BYTESIZE = 8
 RELAY_PARITY = "N"
 RELAY_STOPBITS = 1
+
+
+class SCPICommandBase():
+    command = ""
+    responses = []
+
+class OutputCmd(SCPICommandBase):
+    command = "OUTP"
+    responses = ["OFF", "ON"]
+    set_on_subcommand = "STATE ON"
+    set_off_subcommand = "STATE OFF"
+
+def validate_response(command: SCPICommandBase, response: str) -> bool:
+    if command.responses is not None:
+        return response in command.responses
+    return True
+
+def query_command(sc: Serial, command: SCPICommandBase) -> tuple[bool, str]:
+    sc.write((command.command + "?\n").encode())
+    response = sc.readline().decode().strip()
+    return (validate_response(command, response), response)
+
+def write_command(sc: Serial, command: SCPICommandBase, value: str):
+    sc.write(f"{command.command}:{value}\n".encode())
+
+
+class PowerSupplyOutputController:
+    def __init__(self, serial_connection : Serial):
+        self.serial_connection = serial_connection
+
+    def turn_on(self):
+        write_command(self.serial_connection, OutputCmd(), OutputCmd.set_on_subcommand)
+
+    def turn_off(self):
+        write_command(self.serial_connection, OutputCmd(), OutputCmd.set_off_subcommand)
+
+
+class RelayOutputController:
+    def __init__(self, serial_connection : Serial):
+        self.serial_connection = serial_connection
+
+    def turn_on(self):
+        self.serial_connection.write("AT+CH1=1".encode())
+
+    def turn_off(self):
+        self.serial_connection.write("AT+CH1=0".encode())
+
 
 
 
@@ -33,6 +82,18 @@ class MainWindow(QMainWindow):
         cp = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
+
+        port_list = serial.tools.list_ports.comports()
+        DC_COM_PORT = self.select_com_port("Select DC COM Port", port_list)
+        if DC_COM_PORT is None:
+            print("No COM port selected. Exiting.")
+            sys.exit(1)
+        port_list[:] = [p for p in port_list if not DC_COM_PORT in p.device]
+        RELAY_COM_PORT = self.select_com_port("Select Relay COM Port", port_list)
+        if RELAY_COM_PORT is None:
+            print("No COM port selected. Exiting.")
+            sys.exit(1)
 
         try:
             self.dc_serial = Serial(
@@ -67,6 +128,15 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
 
+
+    def select_com_port(self, title, ports):
+        port_list = [f"{p.device}" for p in ports]
+        if not port_list:
+            return None
+        port, ok = QInputDialog.getItem(self, title, "Select COM port:", port_list, 0, False)
+        if ok and port:
+            return port.split(" - ")[0]
+        return None
 
     def init_ui(self):
         layout = QHBoxLayout()
