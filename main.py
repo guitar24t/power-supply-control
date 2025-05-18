@@ -113,18 +113,30 @@ class MainWindow(QMainWindow):
         self.relay_status_label.setText(f"Status: {status}")
 
     def turn_on_dc(self):
+        if self.dc_controller is None:
+            self.dc_status_label.setText("DC not available")
+            return
         self.dc_controller.turn_on()
         self.update_dc_status()
 
     def turn_off_dc(self):
+        if self.dc_controller is None:
+            self.dc_status_label.setText("DC not available")
+            return
         self.dc_controller.turn_off()
         self.update_dc_status()
 
     def turn_on_relay(self):
+        if self.relay_controller is None:
+            self.relay_status_label.setText("Relay not available")
+            return
         self.relay_controller.turn_on()
         self.update_relay_status("ON")
 
     def turn_off_relay(self):
+        if self.relay_controller is None:
+            self.relay_status_label.setText("Relay not available")
+            return
         self.relay_controller.turn_off()
         self.update_relay_status("OFF")
 
