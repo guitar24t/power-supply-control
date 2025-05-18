@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog
+from PySide6.QtGui import QCloseEvent
 import sys
 from serial import Serial
 import serial.tools.list_ports
+import serial.tools.list_ports_common
+import platform
 
 #For Controlling:
 #Abestop,AT6301,24171025,FV:V5.1.0
@@ -128,14 +131,32 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
 
+    def closeEvent(self, event: QCloseEvent):
+        try:
+            if self.dc_serial is not None:
+                self.dc_serial.close()
+        except Exception as e:
+            print(f"Error closing DC serial port: {e}")
+        
+        try:
+            if self.relay_serial is not None:   
+                self.relay_serial.close()
+        except Exception as e:
+            print(f"Error closing Relay serial port: {e}")
 
-    def select_com_port(self, title, ports):
+        event.accept()
+
+
+    from typing import Optional
+
+    def select_com_port(self, title, ports : list[serial.tools.list_ports_common.ListPortInfo]) -> Optional[str]:
         port_list = [f"{p.device}" for p in ports]
         if not port_list:
             return None
-        port, ok = QInputDialog.getItem(self, title, "Select COM port:", port_list, 0, False)
+        port_type_text = "COM" if platform.system() == "Windows" else "Serial"
+        port, ok = QInputDialog.getItem(self, title, f"Select {port_type_text} Port:", port_list, 0, False)
         if ok and port:
-            return port.split(" - ")[0]
+            return port
         return None
 
     def init_ui(self):
