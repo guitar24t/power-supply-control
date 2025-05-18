@@ -71,10 +71,10 @@ class RelayOutputController:
         self.serial_connection = serial_connection
 
     def turn_on(self):
-        self.serial_connection.write("AT+CH1=1".encode())
+        self.serial_connection.write("AT+CH1=1\n".encode())
 
     def turn_off(self):
-        self.serial_connection.write("AT+CH1=0".encode())
+        self.serial_connection.write("AT+CH1=0\n".encode())
 
 
 
