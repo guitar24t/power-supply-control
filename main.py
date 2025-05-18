@@ -27,7 +27,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Output Control")
-        
+        self.setGeometry(100, 100, 200, 175)
+
+        qr = self.frameGeometry()
+        cp = QApplication.primaryScreen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
         try:
             self.dc_serial = Serial(
                 port=DC_COM_PORT,
