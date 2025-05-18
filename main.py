@@ -109,9 +109,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def update_dc_status(self):
-        success, response = query_command(self.dc_serial, OutputCmd)
-        if success:
-            self.dc_status_label.setText(f"Status: {response}")
+        if self.dc_serial is not None:
+            success, response = query_command(self.dc_serial, OutputCmd())
+            if success:
+                self.dc_status_label.setText(f"Status: {response}")
+            else:
+                self.dc_status_label.setText("Status: Unknown")
         else:
             self.dc_status_label.setText("Status: Unknown")
     
