@@ -11,7 +11,7 @@ import platform
 
 #For Controlling:
 #Abestop,AT6301,24171025,FV:V5.1.0
-DC_COM_PORT = "COM7"
+DC_COM_PORT = "COM3" if platform.system() == "Windows" else "/dev/ttyUSB0"
 DC_TIMEOUT = 2
 DC_BAUDRATE = 115200
 DC_BYTESIZE = 8
@@ -20,12 +20,15 @@ DC_STOPBITS = 2
 
 #For Controlling:
 #DSD TECH SH-UR01A USB Relay Controller
-RELAY_COM_PORT = "COM8"
+RELAY_COM_PORT = "COM4" if platform.system() == "Windows" else "/dev/ttyUSB1"
 RELAY_TIMEOUT = 2
 RELAY_BAUDRATE = 9600
 RELAY_BYTESIZE = 8
 RELAY_PARITY = "N"
 RELAY_STOPBITS = 1
+
+port_type_text = "COM" if platform.system() == "Windows" else "Serial"
+
 
 
 class SCPICommandBase():
@@ -80,7 +83,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Output Control")
-        self.setGeometry(100, 100, 200, 175)
+        self.setGeometry(100, 100, 200, 200)
 
         qr : QRect = self.frameGeometry()
         cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
@@ -89,14 +92,14 @@ class MainWindow(QMainWindow):
 
 
         port_list = serial.tools.list_ports.comports()
-        DC_COM_PORT = self.select_com_port("Select DC COM Port", port_list)
+        DC_COM_PORT = self.select_com_port(f"Select DC {port_type_text} Port", port_list)
         if DC_COM_PORT is None:
-            print("No COM port selected. Exiting.")
+            print(f"No {port_type_text} port selected. Exiting.")
             sys.exit(1)
         port_list[:] = [p for p in port_list if not DC_COM_PORT in p.device]
-        RELAY_COM_PORT = self.select_com_port("Select Relay COM Port", port_list)
+        RELAY_COM_PORT = self.select_com_port(f"Select Relay {port_type_text} Port", port_list)
         if RELAY_COM_PORT is None:
-            print("No COM port selected. Exiting.")
+            print(f"No {[port_type_text]} port selected. Exiting.")
             sys.exit(1)
 
         try:
@@ -154,7 +157,6 @@ class MainWindow(QMainWindow):
         port_list = [f"{p.device}" for p in ports]
         if not port_list:
             return None
-        port_type_text = "COM" if platform.system() == "Windows" else "Serial"
         port, ok = QInputDialog.getItem(self, title, f"Select {port_type_text} Port:", port_list, 0, False)
         if ok and port:
             return port
@@ -202,13 +204,16 @@ class MainWindow(QMainWindow):
 
     def update_dc_status(self):
         if self.dc_serial is not None:
-            success, response = query_command(self.dc_serial, OutputCmd())
-            if success:
-                self.dc_status_label.setText(f"Status: {response}")
-            else:
-                self.dc_status_label.setText("Status: Unknown")
+            try:
+                success, response = query_command(self.dc_serial, OutputCmd())
+                if success:
+                    self.dc_status_label.setText(f"Status: {response}")
+                else:
+                    self.dc_status_label.setText("Status: Unknown")
+            except:
+                self.dc_status_label.setText("DC not available")
         else:
-            self.dc_status_label.setText("Status: Unknown")
+            self.dc_status_label.setText("DC not available")
     
     def update_relay_status(self, status : str):
         self.relay_status_label.setText(f"Status: {status}")
@@ -217,29 +222,45 @@ class MainWindow(QMainWindow):
         if self.dc_controller is None:
             self.dc_status_label.setText("DC not available")
             return
-        self.dc_controller.turn_on()
-        self.update_dc_status()
+        try:
+            self.dc_controller.turn_on()
+            self.update_dc_status()
+        except:
+            self.dc_status_label.setText("DC not available")
+            return
 
     def turn_off_dc(self):
         if self.dc_controller is None:
             self.dc_status_label.setText("DC not available")
             return
-        self.dc_controller.turn_off()
-        self.update_dc_status()
+        try:
+            self.dc_controller.turn_off()
+            self.update_dc_status()
+        except:
+            self.dc_status_label.setText("DC not available")
+            return
 
     def turn_on_relay(self):
         if self.relay_controller is None:
             self.relay_status_label.setText("Relay not available")
             return
-        self.relay_controller.turn_on()
-        self.update_relay_status("ON")
+        try:
+            self.relay_controller.turn_on()
+            self.update_relay_status("ON")
+        except:
+            self.relay_status_label.setText("Relay not available")
+            return
 
     def turn_off_relay(self):
         if self.relay_controller is None:
             self.relay_status_label.setText("Relay not available")
             return
-        self.relay_controller.turn_off()
-        self.update_relay_status("OFF")
+        try:
+            self.relay_controller.turn_off()
+            self.update_relay_status("OFF")
+        except:
+            self.relay_status_label.setText("Relay not available")
+            return
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
