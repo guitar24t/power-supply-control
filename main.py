@@ -41,18 +41,22 @@ class OutputCmd(SCPICommandBase):
     set_on_subcommand = "STATE ON"
     set_off_subcommand = "STATE OFF"
 
-def validate_response(command: SCPICommandBase, response: str) -> bool:
-    if command.responses is not None:
-        return response in command.responses
-    return True
+class SCPI:
+    @classmethod
+    def validate_response(cls, command: SCPICommandBase, response: str) -> bool:
+        if command.responses is not None:
+            return response in command.responses
+        return True
 
-def query_command(sc: Serial, command: SCPICommandBase) -> tuple[bool, str]:
-    sc.write((command.command + "?\n").encode())
-    response = sc.readline().decode().strip()
-    return (validate_response(command, response), response)
+    @classmethod
+    def query_command(cls, sc: Serial, command: SCPICommandBase) -> tuple[bool, str]:
+        sc.write((command.command + "?\n").encode())
+        response = sc.readline().decode().strip()
+        return (cls.validate_response(command, response), response)
 
-def write_command(sc: Serial, command: SCPICommandBase, value: str):
-    sc.write(f"{command.command}:{value}\n".encode())
+    @classmethod
+    def write_command(cls, sc: Serial, command: SCPICommandBase, value: str):
+        sc.write(f"{command.command}:{value}\n".encode())
 
 
 class PowerSupplyOutputController:
@@ -60,10 +64,10 @@ class PowerSupplyOutputController:
         self.serial_connection = serial_connection
 
     def turn_on(self):
-        write_command(self.serial_connection, OutputCmd(), OutputCmd.set_on_subcommand)
+        SCPI.write_command(self.serial_connection, OutputCmd(), OutputCmd.set_on_subcommand)
 
     def turn_off(self):
-        write_command(self.serial_connection, OutputCmd(), OutputCmd.set_off_subcommand)
+        SCPI.write_command(self.serial_connection, OutputCmd(), OutputCmd.set_off_subcommand)
 
 
 class RelayOutputController:
@@ -71,6 +75,7 @@ class RelayOutputController:
         self.serial_connection = serial_connection
 
     def turn_on(self):
+        #These may need a trailing ; as well? AT+CH1=1;\n
         self.serial_connection.write("AT+CH1=1\n".encode())
 
     def turn_off(self):
@@ -205,7 +210,7 @@ class MainWindow(QMainWindow):
     def update_dc_status(self):
         if self.dc_serial is not None:
             try:
-                success, response = query_command(self.dc_serial, OutputCmd())
+                success, response = SCPI.query_command(self.dc_serial, OutputCmd())
                 if success:
                     self.dc_status_label.setText(f"Status: {response}")
                 else:
