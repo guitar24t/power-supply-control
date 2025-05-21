@@ -96,6 +96,10 @@ class MainWindow(QMainWindow):
 
 
         port_list = serial.tools.list_ports.comports()
+        port_list[:] = [p for p in port_list if not p.device.startswith("/dev/ttyS")] # Exclude /dev/ttyS* ports
+        if not port_list:
+            print("No serial ports found. Exiting.")
+            sys.exit(1)
         DC_COM_PORT = self.select_com_port(f"Select DC {port_type_text} Port", port_list)
         if DC_COM_PORT is None:
             print(f"No {port_type_text} port selected. Exiting.")
