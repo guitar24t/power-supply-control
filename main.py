@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+# -*- coding: ascii -*-
 
 from dataclasses import dataclass
-import math
 from typing import Sequence
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog, QDialog, QLineEdit, QComboBox
 from PySide6.QtGui import QCloseEvent
@@ -9,7 +9,6 @@ from PySide6.QtCore import QRect, QPoint, Qt
 import sys
 from serial import Serial
 import serial.tools.list_ports
-import serial.tools.list_ports_common
 import platform
 
 @dataclass
