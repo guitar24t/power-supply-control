@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from dataclasses import dataclass
+import math
+from typing import Sequence
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog, QDialog, QLineEdit, QComboBox
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtCore import QRect, QPoint, Qt
@@ -83,10 +85,12 @@ class RelayOutputController:
 class SerialPortInputDialog(QDialog):
     def __init__(self, labels, parent=None):
         super().__init__(parent)
+        self.setWindowTitle(f"Output Control: Select {port_type_text} Ports")
 
         self.inputs : list[QComboBox] = []
         layout = QVBoxLayout(self)
 
+        counter = 0
         for label_text in labels:
             hbox = QHBoxLayout()
             label = QLabel(label_text)
@@ -96,6 +100,11 @@ class SerialPortInputDialog(QDialog):
             hbox.addWidget(serial_port_select)
             layout.addLayout(hbox)
             self.inputs.append(serial_port_select)
+            serial_port_select.setMinimumWidth(150)
+            serial_port_select.setCurrentIndex(counter)
+            serial_port_select.currentIndexChanged.connect(self.process_combo_box_values)
+            counter += 1
+            counter = min(counter, len(self.inputs))
 
         button_box = QHBoxLayout()
         ok_button = QPushButton("OK")
@@ -109,7 +118,27 @@ class SerialPortInputDialog(QDialog):
         
         self.values = None
 
-    def get_serial_ports(self) -> list[serial.tools.list_ports_common.ListPortInfo]:
+        self.process_combo_box_values()
+
+        self.setFixedSize(layout.sizeHint())
+        qr : QRect = self.frameGeometry()
+        cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+    def process_combo_box_values(self):
+        selected_values = [cb.currentText() for cb in self.inputs]
+        for idx, cb in enumerate(self.inputs):
+            current_value = cb.currentText()
+            cb.blockSignals(True)
+            cb.clear()
+            available_ports = [port for port in self.get_serial_ports() if port not in selected_values or port == current_value]
+            cb.addItems(available_ports)
+            if current_value in available_ports:
+                cb.setCurrentText(current_value)
+            cb.blockSignals(False)
+
+    def get_serial_ports(self) -> Sequence[str]:
         port_list = serial.tools.list_ports.comports()
         port_list[:] = [p for p in port_list if not p.device.startswith("/dev/ttyS")] # Exclude /dev/ttyS* ports
         if not port_list:
@@ -131,23 +160,21 @@ class SerialPortInputDialog(QDialog):
         if result == QDialog.DialogCode.Accepted:
             return dialog.get_values()
         else:
-            return None
+            sys.exit(0)
 
 
 class MainWindow(QMainWindow):
     def __init__(self, serial_ports):
+
+        if serial_ports is None or len(serial_ports) != 2:
+            raise ValueError("Expected 2 serial ports for DC and Relay controllers")
+
         super().__init__()
         self.setWindowTitle("Output Control")
-        self.setGeometry(100, 100, 200, 200)
-
-        qr : QRect = self.frameGeometry()
-        cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
 
         try:
             self.dc_serial = Serial(
-                port=DC_COM_PORT,
+                port=serial_ports[0],
                 timeout=DC_TIMEOUT,
                 write_timeout=DC_TIMEOUT,
                 baudrate=DC_BAUDRATE,
@@ -162,7 +189,7 @@ class MainWindow(QMainWindow):
         
         try:
             self.relay_serial = Serial(
-                port=RELAY_COM_PORT,
+                port=serial_ports[1],
                 timeout=RELAY_TIMEOUT,
                 write_timeout=RELAY_TIMEOUT,
                 baudrate=RELAY_BAUDRATE,
@@ -174,7 +201,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.relay_serial = None
             self.relay_controller = None
-
 
         self.init_ui()
 
@@ -192,18 +218,6 @@ class MainWindow(QMainWindow):
             print(f"Error closing Relay serial port: {e}")
 
         event.accept()
-
-
-    from typing import Optional
-
-    def select_com_port(self, title, ports : list[serial.tools.list_ports_common.ListPortInfo]) -> Optional[str]:
-        port_list = [f"{p.device}" for p in ports]
-        if not port_list:
-            return None
-        port, ok = QInputDialog.getItem(self, title, f"Select {port_type_text} Port:", port_list, 0, False)
-        if ok and port:
-            return port
-        return None
 
     def init_ui(self):
         layout = QHBoxLayout()
@@ -244,6 +258,12 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
+        self.setFixedSize(container.sizeHint())
+        qr : QRect = self.frameGeometry()
+        cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
 
     def update_dc_status(self):
         if self.dc_serial is not None:
@@ -307,8 +327,8 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    serial_ports = [f"DC PS {port_type_text} Port", f"Relay {port_type_text} Port"]
-    values = SerialPortInputDialog.get_inputs(serial_ports)
-    window = MainWindow(serial_ports)
+    serial_ports = [f"DC PS {port_type_text} Port:", f"Relay {port_type_text} Port:"]
+    serial_port_values = SerialPortInputDialog.get_inputs(serial_ports)
+    window = MainWindow(serial_port_values)
     window.show()
     sys.exit(app.exec())
