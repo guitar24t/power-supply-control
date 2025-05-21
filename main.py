@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
 
         ps_layout = QVBoxLayout()
 
-        self.dc_status_label = QLabel("Status: Unknown")
+        self.dc_status_label = QLabel("Status: N/A")
         ps_layout.addWidget(self.dc_status_label)
 
         self.dc_on_button = QPushButton("On")
@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
 
         relay_layout = QVBoxLayout()
 
-        self.relay_status_label = QLabel("Status: Unknown")
+        self.relay_status_label = QLabel("Status: N/A")
         relay_layout.addWidget(self.relay_status_label)
 
         self.relay_on_button = QPushButton("On")
