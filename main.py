@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog
+from dataclasses import dataclass
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QInputDialog, QDialog, QLineEdit, QComboBox
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtCore import QRect, QPoint, Qt
 import sys
@@ -28,8 +29,6 @@ RELAY_PARITY = "N"
 RELAY_STOPBITS = 1
 
 port_type_text = "COM" if platform.system() == "Windows" else "Serial"
-
-
 
 class SCPICommandBase():
     command = ""
@@ -81,10 +80,62 @@ class RelayOutputController:
         self.serial_connection.write('AT+CH1=0'.encode())
 
 
+class SerialPortInputDialog(QDialog):
+    def __init__(self, labels, parent=None):
+        super().__init__(parent)
+
+        self.inputs : list[QComboBox] = []
+        layout = QVBoxLayout(self)
+
+        for label_text in labels:
+            hbox = QHBoxLayout()
+            label = QLabel(label_text)
+            serial_port_select = QComboBox()
+            serial_port_select.addItems(self.get_serial_ports())
+            hbox.addWidget(label)
+            hbox.addWidget(serial_port_select)
+            layout.addLayout(hbox)
+            self.inputs.append(serial_port_select)
+
+        button_box = QHBoxLayout()
+        ok_button = QPushButton("OK")
+        cancel_button = QPushButton("Cancel")
+        button_box.addWidget(ok_button)
+        button_box.addWidget(cancel_button)
+        layout.addLayout(button_box)
+
+        ok_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+        
+        self.values = None
+
+    def get_serial_ports(self) -> list[serial.tools.list_ports_common.ListPortInfo]:
+        port_list = serial.tools.list_ports.comports()
+        port_list[:] = [p for p in port_list if not p.device.startswith("/dev/ttyS")] # Exclude /dev/ttyS* ports
+        if not port_list:
+            print("No serial ports found. Exiting.")
+            sys.exit(1)
+        return [port.device for port in port_list]
+
+    def get_values(self):
+      return self.values
+
+    def accept(self):
+        self.values = [input.currentText() for input in self.inputs]
+        super().accept()
+
+    @staticmethod
+    def get_inputs(labels, parent=None):
+        dialog = SerialPortInputDialog(labels, parent)
+        result = dialog.exec()
+        if result == QDialog.DialogCode.Accepted:
+            return dialog.get_values()
+        else:
+            return None
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, serial_ports):
         super().__init__()
         self.setWindowTitle("Output Control")
         self.setGeometry(100, 100, 200, 200)
@@ -93,22 +144,6 @@ class MainWindow(QMainWindow):
         cp : QPoint = QApplication.primaryScreen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-
-
-        port_list = serial.tools.list_ports.comports()
-        port_list[:] = [p for p in port_list if not p.device.startswith("/dev/ttyS")] # Exclude /dev/ttyS* ports
-        if not port_list:
-            print("No serial ports found. Exiting.")
-            sys.exit(1)
-        DC_COM_PORT = self.select_com_port(f"Select DC {port_type_text} Port", port_list)
-        if DC_COM_PORT is None:
-            print(f"No {port_type_text} port selected. Exiting.")
-            sys.exit(1)
-        port_list[:] = [p for p in port_list if not DC_COM_PORT in p.device]
-        RELAY_COM_PORT = self.select_com_port(f"Select Relay {port_type_text} Port", port_list)
-        if RELAY_COM_PORT is None:
-            print(f"No {[port_type_text]} port selected. Exiting.")
-            sys.exit(1)
 
         try:
             self.dc_serial = Serial(
@@ -272,6 +307,8 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
+    serial_ports = [f"DC PS {port_type_text} Port", f"Relay {port_type_text} Port"]
+    values = SerialPortInputDialog.get_inputs(serial_ports)
+    window = MainWindow(serial_ports)
     window.show()
     sys.exit(app.exec())
