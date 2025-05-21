@@ -12,23 +12,36 @@ import serial.tools.list_ports
 import serial.tools.list_ports_common
 import platform
 
+@dataclass
+class SerialParameters:
+    timeout: int = 2
+    write_timeout: int = 2
+    baudrate: int = 9600
+    bytesize: int = 8
+    parity: str = "N"
+    stopbits: int = 1
+
 #For Controlling:
 #Abestop,AT6301,24171025,FV:V5.1.0
-DC_COM_PORT = "COM3" if platform.system() == "Windows" else "/dev/ttyUSB0"
-DC_TIMEOUT = 2
-DC_BAUDRATE = 115200
-DC_BYTESIZE = 8
-DC_PARITY = "N"
-DC_STOPBITS = 2
+dc_supply_params = SerialParameters(
+    timeout=2,
+    write_timeout=2,
+    baudrate=115200,
+    bytesize=8,
+    parity="N",
+    stopbits=2
+)
 
 #For Controlling:
 #DSD TECH SH-UR01A USB Relay Controller
-RELAY_COM_PORT = "COM4" if platform.system() == "Windows" else "/dev/ttyUSB1"
-RELAY_TIMEOUT = 2
-RELAY_BAUDRATE = 9600
-RELAY_BYTESIZE = 8
-RELAY_PARITY = "N"
-RELAY_STOPBITS = 1
+relay_params = SerialParameters(
+    timeout=2,
+    write_timeout=2,
+    baudrate=9600,
+    bytesize=8,
+    parity="N",
+    stopbits=1
+)
 
 port_type_text = "COM" if platform.system() == "Windows" else "Serial"
 
@@ -175,12 +188,12 @@ class MainWindow(QMainWindow):
         try:
             self.dc_serial = Serial(
                 port=serial_ports[0],
-                timeout=DC_TIMEOUT,
-                write_timeout=DC_TIMEOUT,
-                baudrate=DC_BAUDRATE,
-                bytesize=DC_BYTESIZE,
-                parity=DC_PARITY,
-                stopbits=DC_STOPBITS
+                timeout=dc_supply_params.timeout,
+                write_timeout=dc_supply_params.write_timeout,
+                baudrate=dc_supply_params.baudrate,
+                bytesize=dc_supply_params.bytesize,
+                parity=dc_supply_params.parity,
+                stopbits=dc_supply_params.stopbits
             )
             self.dc_controller = PowerSupplyOutputController(self.dc_serial) 
         except Exception as e:
@@ -190,12 +203,12 @@ class MainWindow(QMainWindow):
         try:
             self.relay_serial = Serial(
                 port=serial_ports[1],
-                timeout=RELAY_TIMEOUT,
-                write_timeout=RELAY_TIMEOUT,
-                baudrate=RELAY_BAUDRATE,
-                bytesize=RELAY_BYTESIZE,
-                parity=RELAY_PARITY,
-                stopbits=RELAY_STOPBITS
+                timeout=relay_params.timeout,
+                write_timeout=relay_params.write_timeout,
+                baudrate=relay_params.baudrate,
+                bytesize=relay_params.bytesize,
+                parity=relay_params.parity,
+                stopbits=relay_params.stopbits
             )
             self.relay_controller = RelayOutputController(self.relay_serial) 
         except Exception as e:
