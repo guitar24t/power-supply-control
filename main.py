@@ -139,6 +139,8 @@ class SerialPortInputDialog(QDialog):
         self.move(qr.topLeft())
 
     def process_combo_box_values(self):
+        if len(self.inputs) <= 2:
+            return
         selected_values = [cb.currentText() for cb in self.inputs]
         for idx, cb in enumerate(self.inputs):
             current_value = cb.currentText()
